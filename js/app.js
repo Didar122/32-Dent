@@ -1851,21 +1851,25 @@ function openAddAppointmentModal() {
 function filterPatientDropdown() {
   const searchTerm = document.getElementById('appointmentPatientSearch').value.toLowerCase();
   const select = document.getElementById('appointmentPatientSelect');
-  const options = select.querySelectorAll('option');
   
-  options.forEach(option => {
-    if (option.value === '') {
-      option.style.display = 'block';
-    } else {
-      // Get the patient data to check both name and phone
-      const patient = appState.patients.find(p => p.id === option.value);
-      const optionText = option.textContent.toLowerCase();
-      const phone = (patient && patient.phone) ? patient.phone.toLowerCase() : '';
-      
-      const matches = optionText.includes(searchTerm) || phone.includes(searchTerm);
-      option.style.display = matches ? 'block' : 'none';
-    }
+  if (!searchTerm) {
+    // If search is empty, show all patients
+    updatePatientsDropdowns();
+    return;
+  }
+  
+  // Filter patients based on search term
+  const filteredPatients = appState.patients.filter(p => {
+    const name = p.name.toLowerCase();
+    const phone = (p.phone || '').toLowerCase();
+    return name.includes(searchTerm) || phone.includes(searchTerm);
   });
+  
+  // Rebuild the select with filtered options
+  const options = `<option value="">Select a Patient</option>` + 
+    filteredPatients.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  
+  select.innerHTML = options;
 }
 
 function showAppointmentPatientInfo() {
@@ -2158,20 +2162,25 @@ function openAddPaymentModal() {
 function filterPaymentPatients() {
   const filterValue = document.getElementById('paymentPatientFilter').value.toLowerCase();
   const selectElement = document.getElementById('paymentPatientSelect');
-  const options = selectElement.options;
   
-  for (let i = 0; i < options.length; i++) {
-    const option = options[i];
-    if (i === 0) continue; // Skip "Select a Patient" option
-    
-    const patient = appState.patients.find(p => p.id === option.value);
-    if (patient) {
-      const name = patient.name.toLowerCase();
-      const phone = (patient.phone || '').toLowerCase();
-      const matches = name.includes(filterValue) || phone.includes(filterValue);
-      option.style.display = matches ? '' : 'none';
-    }
+  if (!filterValue) {
+    // If search is empty, show all patients
+    updatePatientsDropdowns();
+    return;
   }
+  
+  // Filter patients based on search term
+  const filteredPatients = appState.patients.filter(p => {
+    const name = p.name.toLowerCase();
+    const phone = (p.phone || '').toLowerCase();
+    return name.includes(filterValue) || phone.includes(filterValue);
+  });
+  
+  // Rebuild the select with filtered options
+  const options = `<option value="">Select a Patient</option>` + 
+    filteredPatients.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  
+  selectElement.innerHTML = options;
 }
 
 async function savePayment(event) {

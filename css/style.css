@@ -9,6 +9,12 @@
   box-sizing: border-box;
 }
 
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
 :root {
   /* Primary Colors */
   --primary-teal: #1a6e6d;
@@ -667,6 +673,8 @@ body {
 /* ==================== FORMS ==================== */
 .form-group {
   margin-bottom: var(--spacing-lg);
+  box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
 .form-label {
@@ -687,6 +695,9 @@ body {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
 }
 
 .form-input:focus,
@@ -800,11 +811,28 @@ input[type="time"] {
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
+  overflow-x: hidden !important;
   box-shadow: var(--shadow-lg);
   animation: slideUp 0.3s ease-out;
+  box-sizing: border-box !important;
 }
 
-@keyframes slideUp {
+/* Prevent horizontal overflow on mobile for search containers and input wrappers */
+div[style*="display: flex"] {
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+form {
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.modal-content form {
+  padding: 0 !important;
+}
   from {
     transform: translateY(30px);
     opacity: 0;
@@ -927,6 +955,13 @@ input[type="time"] {
     width: 95%;
     padding: var(--spacing-lg);
     max-width: 95vw;
+    box-sizing: border-box !important;
+  }
+  
+  .modal-content form,
+  .modal-content form .form-group {
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
   
   /* Ensure date/time inputs don't cause horizontal scroll */
@@ -935,6 +970,15 @@ input[type="time"] {
     max-width: 100%;
     width: 100%;
     box-sizing: border-box;
+    font-size: 16px;
+  }
+  
+  .form-input,
+  .form-select,
+  .form-textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   
   .modal-footer {
