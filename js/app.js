@@ -962,19 +962,19 @@ function viewPatientProfile(patientId) {
     <div style="background: var(--light-gray); padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 1rem;">
       <h3 style="color: var(--primary-teal); margin-bottom: 1rem;">${patient.name}</h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">${t('phone')}</div>
           <div style="font-weight: 600;">${patient.phone}</div>
         </div>
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">${t('email')}</div>
           <div style="font-weight: 600;">${patient.email || 'N/A'}</div>
         </div>
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">${t('patientAge')}</div>
           <div style="font-weight: 600;">${patient.age || 'N/A'}</div>
         </div>
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">${t('patientAddress')}</div>
           <div style="font-weight: 600;">${patient.address || 'N/A'}</div>
         </div>
@@ -1279,17 +1279,17 @@ function openDoctorDetailsModal(doctorId) {
       
       <div style="background: var(--light-gray); padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 1.5rem;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('specialty')}</div>
             <div style="font-weight: 600;">${doctor.specialty}</div>
           </div>
           
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('phone')}</div>
             <div style="font-weight: 600; word-break: break-all;">${doctor.phone}</div>
           </div>
           
-          <div style="grid-column: 1 / -1;">
+          <div style="grid-column: 1 / -1; text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('email')}</div>
             <div style="font-weight: 600; word-break: break-all;">${doctor.email}</div>
           </div>
@@ -1298,6 +1298,12 @@ function openDoctorDetailsModal(doctorId) {
       
       <div id="doctorAppointmentsContainer" style="margin-bottom: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
         <h4 style="margin-bottom: 1rem; color: var(--primary-teal);">${t('appointmentHistory')}</h4>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+          <input type="text" id="doctorAppointmentFilter" placeholder="Search patient..." data-placeholder="searchByNamePhone" style="flex: 1; min-width: 150px; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+          <button class="btn btn-secondary" id="doctorAppointmentSortBtn" style="padding: 0.5rem 0.75rem; font-size: 0.9rem;">
+            <i class="fas fa-sort"></i> <span data-i18n="sortNewest">Newest First</span>
+          </button>
+        </div>
         <div id="doctorAppointmentsList" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0;"></div>
         <div id="doctorAppointmentsPagination" style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;"></div>
       </div>
@@ -1335,14 +1341,40 @@ function openAddDoctorModal() {
 }
 
 function loadDoctorAppointments(doctorId) {
-  const doctorAppointments = appState.appointments.filter(a => a.doctor === doctorId);
+  let doctorAppointments = appState.appointments.filter(a => a.doctor === doctorId);
+  let sortNewest = true; // Default: newest first
   const itemsPerPage = 20;
   let currentPage = 1;
   
-  function displayPage(page) {
+  // Sort by date (newest first)
+  doctorAppointments.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  function filterAndDisplay() {
+    const searchTerm = document.getElementById('doctorAppointmentFilter')?.value.toLowerCase() || '';
+    let filteredAppointments = doctorAppointments;
+    
+    if (searchTerm) {
+      filteredAppointments = doctorAppointments.filter(apt => {
+        const patient = appState.patients.find(p => p.id === apt.patientId);
+        const name = patient ? patient.name.toLowerCase() : '';
+        const phone = patient ? (patient.phone || '').toLowerCase() : '';
+        return name.includes(searchTerm) || phone.includes(searchTerm);
+      });
+    }
+    
+    // Sort based on toggle
+    if (!sortNewest) {
+      filteredAppointments = [...filteredAppointments].reverse();
+    }
+    
+    currentPage = 1;
+    displayPage(1, filteredAppointments);
+  }
+  
+  function displayPage(page, appointList = doctorAppointments) {
     const start = (page - 1) * itemsPerPage;
     const end = start + itemsPerPage;
-    const pageAppointments = doctorAppointments.slice(start, end);
+    const pageAppointments = appointList.slice(start, end);
     
     const appointmentsList = document.getElementById('doctorAppointmentsList');
     if (!appointmentsList) return;
@@ -1353,7 +1385,7 @@ function loadDoctorAppointments(doctorId) {
       appointmentsList.innerHTML = pageAppointments.map(apt => {
         const patient = appState.patients.find(p => p.id === apt.patientId);
         const patientName = patient ? patient.name : 'Unknown';
-        const appointmentDate = new Date(apt.date).toLocaleDateString();
+        const appointmentDate = formatDateWithTranslation(apt.date);
         
         return `
           <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); cursor: pointer; background: transparent; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--light-gray)'" onmouseout="this.style.backgroundColor='transparent'" onclick="showDoctorAppointmentDetails('${apt.id}', '${doctorId}')">
@@ -1365,7 +1397,7 @@ function loadDoctorAppointments(doctorId) {
     }
     
     // Display pagination buttons
-    const maxPages = Math.ceil(doctorAppointments.length / itemsPerPage);
+    const maxPages = Math.ceil(appointList.length / itemsPerPage);
     const paginationDiv = document.getElementById('doctorAppointmentsPagination');
     if (!paginationDiv) return;
     
@@ -1375,9 +1407,31 @@ function loadDoctorAppointments(doctorId) {
       btn.className = `btn ${i === page ? 'btn-primary' : 'btn-secondary'}`;
       btn.textContent = i;
       btn.style.padding = '0.4rem 0.8rem';
-      btn.onclick = () => displayPage(i);
+      btn.onclick = () => displayPage(i, appointList);
       paginationDiv.appendChild(btn);
     }
+  }
+  
+  // Set up event listeners
+  const filterInput = document.getElementById('doctorAppointmentFilter');
+  if (filterInput) {
+    filterInput.removeEventListener('input', filterAndDisplay);
+    filterInput.addEventListener('input', filterAndDisplay);
+  }
+  
+  const sortBtn = document.getElementById('doctorAppointmentSortBtn');
+  if (sortBtn) {
+    sortBtn.removeEventListener('click', toggleSort);
+    sortBtn.addEventListener('click', toggleSort);
+  }
+  
+  function toggleSort() {
+    sortNewest = !sortNewest;
+    const sortBtn = document.getElementById('doctorAppointmentSortBtn');
+    if (sortBtn) {
+      sortBtn.innerHTML = `<i class="fas fa-sort"></i> <span>${sortNewest ? t('sortNewest') : t('sortOldest')}</span>`;
+    }
+    filterAndDisplay();
   }
   
   displayPage(1);
@@ -1393,23 +1447,23 @@ function showDoctorAppointmentDetails(appointmentId, doctorId) {
   const details = `
     <div style="background: var(--light-gray); padding: 1.5rem; border-radius: var(--radius-lg);">
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">${t('patientName')}</div>
           <div style="font-weight: 600;">${patient ? patient.name : 'Unknown'}</div>
         </div>
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">${t('phone')}</div>
           <div style="font-weight: 600;">${patient ? (patient.phone || 'N/A') : 'N/A'}</div>
         </div>
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">${t('date')}</div>
-          <div style="font-weight: 600;">${new Date(appointment.date).toLocaleDateString()}</div>
+          <div style="font-weight: 600;">${formatDateWithTranslation(appointment.date)}</div>
         </div>
-        <div>
+        <div style="text-align: center;">
           <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">${t('time')}</div>
           <div style="font-weight: 600;">${appointment.time || 'N/A'}</div>
         </div>
-        <div style="grid-column: 1 / -1;">
+        <div style="grid-column: 1 / -1; text-align: center;">
           <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">${t('treatmentDescription')}</div>
           <div style="font-weight: 600;">${appointment.treatment || 'N/A'}</div>
         </div>
@@ -1649,9 +1703,11 @@ function loadAppointmentsTable() {
         html += `<tr><td colspan="3" style="padding: 0;"><div style="height: 2px; background: var(--primary-teal); margin: 1rem 0;"></div></td></tr>`;
       }
       
-      // Format date for display - "Friday, 4/11/2026"
+      // Format date for display with translations - "Friday, 4/11/2026"
       const dateObj = new Date(appointmentDate.getTime() + appointmentDate.getTimezoneOffset() * 60000);
-      const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const weekdayKey = dayNames[dateObj.getDay()];
+      const weekday = t(weekdayKey);
       const month = String(dateObj.getMonth() + 1).padStart(2, '0');
       const day = String(dateObj.getDate()).padStart(2, '0');
       const year = dateObj.getFullYear();
@@ -1709,27 +1765,27 @@ function openAppointmentDetailsModal(appointmentId) {
       
       <div style="background: var(--light-gray); padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 1.5rem;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1rem;">
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('phone')}</div>
             <div style="font-weight: 600;">${patient?.phone || 'N/A'}</div>
           </div>
           
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('date')}</div>
             <div style="font-weight: 600;">${appointment.date}</div>
           </div>
           
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('time')}</div>
             <div style="font-weight: 600;">${formatTime12Hour(appointment.time)}</div>
           </div>
           
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('doctor')}</div>
             <div style="font-weight: 600;">${doctor?.name || 'Unknown'} ${doctor?.specialty ? `(${doctor.specialty})` : ''}</div>
           </div>
           
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">${t('status')}</div>
             <div style="font-weight: 600;">${appointment.status}</div>
           </div>
@@ -2024,6 +2080,24 @@ function formatTime12Hour(time24) {
   hours12 = hours12 % 12;
   hours12 = hours12 ? hours12 : 12;
   return `${String(hours12).padStart(2, '0')}:${minutes} ${ampm}`;
+}
+
+function formatDateWithTranslation(dateString) {
+  if (!dateString) return 'N/A';
+  
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  
+  const date = new Date(dateString);
+  const dayOfWeek = dayNames[date.getDay()];
+  const month = monthNames[date.getMonth()];
+  const dayOfMonth = date.getDate();
+  const year = date.getFullYear();
+  
+  const translatedDay = t(dayOfWeek);
+  const translatedMonth = t(month);
+  
+  return `${translatedDay}, ${translatedMonth} ${dayOfMonth}, ${year}`;
 }
 
 function loadTransactionsTable() {
@@ -2362,9 +2436,9 @@ async function exportPatientPDF() {
     header.style.borderRadius = '8px';
     header.style.marginBottom = '30px';
     header.innerHTML = `
-      <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">32 DENT Clinic Management</div>
-      <h1 style="margin: 0; font-size: 28px; margin-bottom: 10px;">Patient Information Report</h1>
-      <p style="margin: 0; font-size: 14px; opacity: 0.9;">Generated on ${new Date().toLocaleString()}</p>
+      <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">32 DENT ${t('clinicManagement')}</div>
+      <h1 style="margin: 0; font-size: 28px; margin-bottom: 10px;">${t('patientInformationReport')}</h1>
+      <p style="margin: 0; font-size: 14px; opacity: 0.9;">${t('generatedOn')} ${new Date().toLocaleString()}</p>
     `;
     pdfContent.appendChild(header);
     
@@ -2372,38 +2446,38 @@ async function exportPatientPDF() {
     const detailsSection = document.createElement('div');
     detailsSection.style.marginBottom = '30px';
     detailsSection.innerHTML = `
-      <h2 style="color: #1a6e6d; border-bottom: 2px solid #1a6e6d; padding-bottom: 10px; margin: 0 0 20px 0; font-size: 18px;">Patient Details</h2>
+      <h2 style="color: #1a6e6d; border-bottom: 2px solid #1a6e6d; padding-bottom: 10px; margin: 0 0 20px 0; font-size: 18px;">${t('patientDetails')}</h2>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Name</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('name')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.name || 'N/A'}</div>
         </div>
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Phone</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('phone')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.phone || 'N/A'}</div>
         </div>
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Age</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('age')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.age || 'N/A'}</div>
         </div>
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Address</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('address')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.address || 'N/A'}</div>
         </div>
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Illness/Medical History</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('illness')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.illness || 'None recorded'}</div>
         </div>
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Notes</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('notes')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.notes || 'None recorded'}</div>
         </div>
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Created By</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('createdBy')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.createdBy || 'Unknown'}</div>
         </div>
-        <div>
-          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Created On</div>
+        <div style="text-align: center;">
+          <div style="font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">${t('createdAt')}</div>
           <div style="font-size: 14px; font-weight: 600;">${patient.createdAt ? new Date(patient.createdAt).toLocaleString() : 'Unknown'}</div>
         </div>
       </div>
@@ -2415,27 +2489,30 @@ async function exportPatientPDF() {
       const appointmentsSection = document.createElement('div');
       appointmentsSection.style.marginBottom = '30px';
       appointmentsSection.innerHTML = `
-        <h2 style="color: #1a6e6d; border-bottom: 2px solid #1a6e6d; padding-bottom: 10px; margin: 0 0 15px 0; font-size: 18px;">Appointment History (${patientAppointments.length})</h2>
+        <h2 style="color: #1a6e6d; border-bottom: 2px solid #1a6e6d; padding-bottom: 10px; margin: 0 0 15px 0; font-size: 18px;">${t('appointmentHistory')} (${patientAppointments.length})</h2>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
           <thead>
             <tr>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Date</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Time</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Doctor</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Status</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Notes</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('date')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('time')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('doctor')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('status')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('notes')}</th>
             </tr>
           </thead>
           <tbody>
-            ${patientAppointments.map(apt => `
+            ${patientAppointments.map(apt => {
+              const doctor = appState.doctors.find(d => d.id === apt.doctor);
+              return `
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${apt.date || ''}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${apt.time || ''}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${apt.doctor || ''}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${doctor ? doctor.name : 'Unknown'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${t(apt.status || 'scheduled')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${apt.note || ''}</td>
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
       `;
@@ -2447,27 +2524,30 @@ async function exportPatientPDF() {
       const treatmentsSection = document.createElement('div');
       treatmentsSection.style.marginBottom = '30px';
       treatmentsSection.innerHTML = `
-        <h2 style="color: #1a6e6d; border-bottom: 2px solid #1a6e6d; padding-bottom: 10px; margin: 0 0 15px 0; font-size: 18px;">Treatment Records (${patientTreatments.length})</h2>
+        <h2 style="color: #1a6e6d; border-bottom: 2px solid #1a6e6d; padding-bottom: 10px; margin: 0 0 15px 0; font-size: 18px;">${t('treatmentRecords')} (${patientTreatments.length})</h2>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
           <thead>
             <tr>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Type</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Doctor</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Date</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Cost</th>
-              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">Notes</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('treatmentType')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('doctor')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('date')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('cost')}</th>
+              <th style="background: #f0f0f0; padding: 10px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd;">${t('notes')}</th>
             </tr>
           </thead>
           <tbody>
-            ${patientTreatments.map(tri => `
+            ${patientTreatments.map(tri => {
+              const doctor = appState.doctors.find(d => d.id === tri.doctor);
+              return `
               <tr>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${tri.treatmentType || ''}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${tri.doctor || ''}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${doctor ? doctor.name : 'Unknown'}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${tri.date || ''}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${tri.cost || ''}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${tri.notes || ''}</td>
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
       `;
@@ -2483,8 +2563,8 @@ async function exportPatientPDF() {
     footer.style.fontSize = '12px';
     footer.style.color = '#999';
     footer.innerHTML = `
-      <p style="margin: 5px 0;">This document is confidential and contains sensitive medical information.</p>
-      <p style="margin: 5px 0;">Generated by 32 DENT Clinic Management System</p>
+      <p style="margin: 5px 0;">${t('pdfConfidential')}</p>
+      <p style="margin: 5px 0;">32 DENT ${t('clinicManagement')}</p>
     `;
     pdfContent.appendChild(footer);
     
